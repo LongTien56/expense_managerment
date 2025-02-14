@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Lịch sử tháng {{ month }}</title>
+</head>
+<body>
+    <h1>Lịch sử giao dịch của tháng {{ month }}</h1>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Mục</th>
+                <th>Số tiền</th>
+                <th>Ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td>{{ tx.item }}</td>
+                <td>{{ tx.price }}</td>
+                <td>{{ tx.date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p><a href="{{ url_for('index') }}">Quay lại trang chính</a></p>
+</body>
+</html>

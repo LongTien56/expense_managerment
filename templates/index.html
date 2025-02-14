@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản Lý Chi Tiêu</title>
+</head>
+<body>
+    <h1>Quản Lý Chi Tiêu</h1>
+    
+    {% if budget %}
+    <h2>Ngân sách hiện tại: {{ budget.current_balance }}</h2>
+    {% else %}
+    <h2>Ngân sách hiện tại: Chưa được thiết lập</h2>
+    {% endif %}
+    
+    <!-- Form nhập ngân sách ban đầu (hiển thị nếu chưa thiết lập) -->
+    {% if not budget %}
+    <h3>Nhập Ngân Sách Ban Đầu</h3>
+    <form method="POST">
+        <input type="number" step="0.01" name="initial_budget" placeholder="Tổng ngân sách của tháng" required>
+        <button type="submit">Thiết lập ngân sách</button>
+    </form>
+    {% endif %}
+    
+    <!-- Form nhập chi tiêu -->
+    <h3>Nhập Chi Tiêu</h3>
+    <form method="POST">
+        <input type="text" name="expense_item" placeholder="Mục chi tiêu" required>
+        <input type="number" step="0.01" name="expense_price" placeholder="Số tiền" required>
+        <button type="submit">Thêm chi tiêu</button>
+    </form>
+    
+    <!-- Form nhập thu nhập bất ngờ -->
+    <h3>Nhập Thu Nhập Mới</h3>
+    <form method="POST">
+        <input type="number" step="0.01" name="income_amount" placeholder="Số tiền thu nhập" required>
+        <button type="submit">Thêm thu nhập</button>
+    </form>
+    
+    <!-- Bảng hiển thị giao dịch của tháng hiện tại -->
+    <h3>Lịch Sử Giao Dịch (Tháng Hiện Tại)</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Mục</th>
+                <th>Số tiền</th>
+                <th>Ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td>{{ tx.item }}</td>
+                <td>{{ tx.price }}</td>
+                <td>{{ tx.date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Link để lưu trữ giao dịch của tháng hiện tại -->
+    <p>
+        <a href="{{ url_for('do_archive') }}">Lưu trữ lịch sử tháng hiện tại</a>
+    </p>
+    
+    <!-- Liệt kê các tháng đã lưu trữ -->
+    <h3>Lịch sử đã lưu trữ</h3>
+    <ul>
+        {% if archived_months %}
+            {% for month in archived_months %}
+                <li><a href="{{ url_for('view_history', month=month) }}">{{ month }}</a></li>
+            {% endfor %}
+        {% else %}
+            <li>Chưa có dữ liệu lịch sử</li>
+        {% endif %}
+    </ul>
+</body>
+</html>
