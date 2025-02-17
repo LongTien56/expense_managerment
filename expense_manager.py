@@ -5,7 +5,7 @@ import datetime
 app = Flask(__name__)
 
 # Cấu hình kết nối tới MySQL (điền thông tin phù hợp)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:akcyend9@rodion_mysql_master_1/expense_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:akcyend9@localhost/expense_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -23,114 +23,128 @@ class Transaction(db.Model):
     item = db.Column(db.String(255))
     price = db.Column(db.Float)  # âm cho chi tiêu, dương cho thu nhập
     date = db.Column(db.Date, default=datetime.date.today)
-    archived = db.Column(db.Boolean, default=False)  # False: giao dịch tháng hiện tại, True: đã archive
+    archived = db.Column(db.Boolean, default=False)
+
+# Model lưu trữ nợ
+class Debt(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(255))
+    amount = db.Column(db.Float)
+    paid_amount = db.Column(db.Float, default=0.0)
+    date = db.Column(db.Date, default=datetime.date.today)
+    archived = db.Column(db.Boolean, default=False)
 
 with app.app_context():
     db.create_all()
 
 def check_month_transition():
-    """
-    Kiểm tra chuyển tháng: nếu không có record ngân sách của tháng hiện tại,
-    archive giao dịch của tháng cũ và tạo record mới.
-    """
     current_month = datetime.date.today().strftime("%Y-%m")
     current_budget = Budget.query.filter_by(month=current_month).first()
     if not current_budget:
-        # Archive các giao dịch của các tháng cũ (chỉ archive những giao dịch chưa archive)
-        old_transactions = Transaction.query.filter(
-            Transaction.archived == False,
-            ~Transaction.date.like(f"{current_month}-%")
-        ).all()
+        old_transactions = Transaction.query.filter(Transaction.archived == False).all()
+        old_debts = Debt.query.filter(Debt.archived == False).all()
         for tx in old_transactions:
             tx.archived = True
+        for debt in old_debts:
+            debt.archived = True
         db.session.commit()
-        # Tạo record ngân sách mới cho tháng hiện tại với giá trị ban đầu là 0.0
+
         new_budget = Budget(month=current_month, initial_budget=0.0, current_balance=0.0)
         db.session.add(new_budget)
         db.session.commit()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    check_month_transition()  # Kiểm tra và xử lý chuyển tháng khi truy cập trang chính
-
+    check_month_transition()
     current_month = datetime.date.today().strftime("%Y-%m")
     budget = Budget.query.filter_by(month=current_month).first()
 
     if request.method == 'POST':
-        # Nhập ngân sách ban đầu (chỉ khi record ngân sách chưa có)
-        if 'initial_budget' in request.form:
-            try:
-                initial_budget = float(request.form['initial_budget'])
-                if not budget:
-                    budget = Budget(month=current_month,
-                                    initial_budget=initial_budget,
-                                    current_balance=initial_budget)
-                    db.session.add(budget)
-                else:
-                    budget.initial_budget = initial_budget
-                    budget.current_balance = initial_budget
+        try:
+            if 'debt_description' in request.form and 'debt_amount' in request.form:
+                description = request.form['debt_description']
+                amount = float(request.form['debt_amount'])
+                new_debt = Debt(description=description, amount=amount, date=datetime.date.today(), archived=False)
+                db.session.add(new_debt)
                 db.session.commit()
-            except ValueError:
-                pass
 
-        # Nhập chi tiêu
-        elif 'expense_item' in request.form and 'expense_price' in request.form:
-            try:
+            elif 'debt_payment' in request.form and 'debt_id' in request.form:
+                amount = float(request.form['debt_payment'])
+                debt_id = int(request.form['debt_id'])
+                debt = Debt.query.get(debt_id)
+                if debt:
+                    debt.paid_amount += amount
+                    db.session.commit()
+
+            elif 'expense_item' in request.form and 'expense_price' in request.form:
                 item = request.form['expense_item']
                 price = float(request.form['expense_price'])
                 if budget:
                     budget.current_balance -= price
-                    tx = Transaction(item=item,
-                                     price=-price,
-                                     date=datetime.date.today(),
-                                     archived=False)
+                    tx = Transaction(item=item, price=-price, date=datetime.date.today(), archived=False)
                     db.session.add(tx)
                     db.session.commit()
-            except ValueError:
-                pass
 
-        # Nhập thu nhập bất ngờ
-        elif 'income_amount' in request.form:
-            try:
+            elif 'income_amount' in request.form:
                 amount = float(request.form['income_amount'])
                 if budget:
                     budget.current_balance += amount
-                    tx = Transaction(item="Thu nhập bất ngờ",
-                                     price=amount,
-                                     date=datetime.date.today(),
-                                     archived=False)
+                    tx = Transaction(item="Thu nhập bất ngờ", price=amount, date=datetime.date.today(), archived=False)
                     db.session.add(tx)
                     db.session.commit()
-            except ValueError:
-                pass
+        except ValueError:
+            pass
 
         return redirect(url_for('index'))
     
-    # Lấy các giao dịch của tháng hiện tại (chưa archive)
-    transactions = Transaction.query.filter(
-        Transaction.archived == False,
-        Transaction.date.like(f"{current_month}-%")
-    ).all()
+    transactions = Transaction.query.filter(Transaction.archived == False).all()
+    debts = Debt.query.filter(Debt.archived == False).all()
 
-    # Tính danh sách các tháng đã archive từ các giao dịch (lấy duy nhất các tháng)
-    archived_tx = Transaction.query.filter(Transaction.archived == True).all()
-    archived_months_set = {tx.date.strftime("%Y-%m") for tx in archived_tx}
-    archived_months = sorted(archived_months_set)
+    total_spending = sum(tx.price for tx in transactions if tx.price < 0)
+    total_earning = sum(tx.price for tx in transactions if tx.price > 0)
+    total_debt = sum(debt.amount for debt in debts)
+    total_paid = sum(debt.paid_amount for debt in debts)
 
-    return render_template('index.html', budget=budget, transactions=transactions, archived_months=archived_months)
+    # Get archived months from transactions and debts
+    archived_tx_months = {tx.date.strftime("%Y-%m") for tx in Transaction.query.filter(Transaction.archived == True).all()}
+    archived_debt_months = {debt.date.strftime("%Y-%m") for debt in Debt.query.filter(Debt.archived == True).all()}
+    archived_months = sorted(archived_tx_months.union(archived_debt_months), reverse=True)
 
-# Route để archive giao dịch của tháng hiện tại
+    return render_template(
+        'index.html', 
+        budget=budget, 
+        transactions=transactions, 
+        debts=debts,
+        total_spending=total_spending, 
+        total_earning=total_earning,
+        total_debt=total_debt, 
+        total_paid=total_paid,
+        archived_months=archived_months
+    )
+
+
 @app.route('/archive')
 def do_archive():
     current_month = datetime.date.today().strftime("%Y-%m")
+
     transactions = Transaction.query.filter(
         Transaction.archived == False,
         Transaction.date.like(f"{current_month}-%")
     ).all()
+
+    debts = Debt.query.filter(
+        Debt.archived == False,
+        Debt.date.like(f"{current_month}-%")
+    ).all()
+
     for tx in transactions:
         tx.archived = True
+    for debt in debts:
+        debt.archived = True
+
     db.session.commit()
     return redirect(url_for('index'))
+
 
 @app.route('/history/<month>')
 def view_history(month):
@@ -138,9 +152,31 @@ def view_history(month):
         Transaction.archived == True,
         Transaction.date.like(f"{month}-%")
     ).all()
-    if not transactions:
+
+    debts = Debt.query.filter(
+        Debt.archived == True,
+        Debt.date.like(f"{month}-%")
+    ).all()
+
+    if not transactions and not debts:
         return f"Không có dữ liệu cho tháng {month}"
-    return render_template('history.html', month=month, transactions=transactions)
+
+    total_spending = sum(tx.price for tx in transactions if tx.price < 0)
+    total_earning = sum(tx.price for tx in transactions if tx.price > 0)
+    total_debt = sum(debt.amount for debt in debts)
+    total_paid = sum(debt.paid_amount for debt in debts)
+
+    return render_template(
+        'history.html', 
+        month=month, 
+        transactions=transactions, 
+        debts=debts,
+        total_spending=total_spending,
+        total_earning=total_earning,
+        total_debt=total_debt,
+        total_paid=total_paid
+    )
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

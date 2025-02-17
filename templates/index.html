@@ -13,7 +13,7 @@
     <h2>Ngân sách hiện tại: Chưa được thiết lập</h2>
     {% endif %}
     
-    <!-- Form nhập ngân sách ban đầu (hiển thị nếu chưa thiết lập) -->
+    <!-- Form nhập ngân sách ban đầu -->
     {% if not budget %}
     <h3>Nhập Ngân Sách Ban Đầu</h3>
     <form method="POST">
@@ -36,7 +36,27 @@
         <input type="number" step="0.01" name="income_amount" placeholder="Số tiền thu nhập" required>
         <button type="submit">Thêm thu nhập</button>
     </form>
-    
+
+    <!-- Form nhập nợ -->
+    <h3>Quản Lý Nợ</h3>
+    <form method="POST">
+        <input type="text" name="debt_description" placeholder="Tên khoản nợ" required>
+        <input type="number" step="0.01" name="debt_amount" placeholder="Số tiền nợ" required>
+        <button type="submit">Thêm khoản nợ</button>
+    </form>
+
+    <!-- Form nhập trả nợ -->
+    <h3>Thanh Toán Nợ</h3>
+    <form method="POST">
+        <select name="debt_id">
+            {% for debt in debts %}
+                <option value="{{ debt.id }}">{{ debt.description }} (Còn lại: {{ debt.amount - debt.paid_amount }})</option>
+            {% endfor %}
+        </select>
+        <input type="number" step="0.01" name="debt_payment" placeholder="Số tiền trả nợ" required>
+        <button type="submit">Trả nợ</button>
+    </form>
+
     <!-- Bảng hiển thị giao dịch của tháng hiện tại -->
     <h3>Lịch Sử Giao Dịch (Tháng Hiện Tại)</h3>
     <table border="1" cellpadding="5" cellspacing="0">
@@ -55,6 +75,53 @@
                 <td>{{ tx.date }}</td>
             </tr>
             {% endfor %}
+            <tr>
+                <td><strong>Tổng chi tiêu:</strong></td>
+                <td>{{ total_spending }}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>Tổng thu nhập:</strong></td>
+                <td>{{ total_earning }}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>Chênh lệch:</strong></td>
+                <td>{{ total_earning + total_spending }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Bảng hiển thị danh sách các khoản nợ -->
+    <h3>Danh Sách Nợ</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Mô tả</th>
+                <th>Tổng tiền nợ</th>
+                <th>Đã trả</th>
+                <th>Còn lại</th>
+                <th>Ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for debt in debts %}
+            <tr>
+                <td>{{ debt.description }}</td>
+                <td>{{ debt.amount }}</td>
+                <td>{{ debt.paid_amount }}</td>
+                <td>{{ debt.amount - debt.paid_amount }}</td>
+                <td>{{ debt.date }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td><strong>Tổng nợ:</strong></td>
+                <td>{{ total_debt }}</td>
+                <td>{{ total_paid }}</td>
+                <td>{{ total_debt - total_paid }}</td>
+                <td></td>
+            </tr>
         </tbody>
     </table>
     

@@ -6,7 +6,8 @@
 </head>
 <body>
     <h1>Lịch sử giao dịch của tháng {{ month }}</h1>
-    <table border="1" cellpadding="5" cellspacing="0">
+
+    <table border="1">
         <thead>
             <tr>
                 <th>Mục</th>
@@ -22,8 +23,55 @@
                 <td>{{ tx.date }}</td>
             </tr>
             {% endfor %}
+            <tr>
+                <td><strong>Tổng chi tiêu:</strong></td>
+                <td>{{ total_spending }}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>Tổng thu nhập:</strong></td>
+                <td>{{ total_earning }}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>Chênh lệch:</strong></td>
+                <td>{{ total_earning + total_spending }}</td>
+                <td></td>
+            </tr>
         </tbody>
     </table>
+
+    <h3>Lịch sử Nợ</h3>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Mô tả</th>
+                <th>Tổng tiền nợ</th>
+                <th>Đã trả</th>
+                <th>Còn lại</th>
+                <th>Ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for debt in debts %}
+            <tr>
+                <td>{{ debt.description }}</td>
+                <td>{{ debt.amount }}</td>
+                <td>{{ debt.paid_amount }}</td>
+                <td>{{ debt.amount - debt.paid_amount }}</td>
+                <td>{{ debt.date }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td><strong>Tổng nợ:</strong></td>
+                <td>{{ total_debt }}</td>
+                <td>{{ total_paid }}</td>
+                <td>{{ total_debt - total_paid }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
     <p><a href="{{ url_for('index') }}">Quay lại trang chính</a></p>
 </body>
 </html>
