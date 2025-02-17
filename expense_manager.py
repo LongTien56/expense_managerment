@@ -5,7 +5,7 @@ import datetime
 app = Flask(__name__)
 
 # Cấu hình kết nối tới MySQL (điền thông tin phù hợp)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:akcyend9@localhost/expense_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:akcyend9@rodion_mysql_master_1/expense_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
